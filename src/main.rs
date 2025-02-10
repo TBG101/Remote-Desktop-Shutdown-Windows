@@ -1,35 +1,24 @@
-#![windows_subsystem = "windows"]
-
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
+mod trayBuilder;
 use enigo::{Enigo, MouseControllable};
-
 use std::io::{self};
 use std::net::UdpSocket;
 use std::process::{Command, Stdio};
 use std::thread;
+
+#[cfg(target_os = "windows")]
 use winreg::enums::*;
+#[cfg(target_os = "windows")]
 use winreg::RegKey;
 
 fn main() {
-    thread::spawn(|| {
+    let handle = thread::spawn(|| {
         packet_loop();
     });
 
-    let mut app;
-    match systray::Application::new() {
-        Ok(w) => app = w,
-        Err(_) => panic!("Can't create window!"),
-    }
-
-    let _ = app.set_icon_from_file("icon.ico");
-
-    _ = app.add_menu_item("Quit", |window| {
-        window.quit();
-        Ok::<_, systray::Error>(())
-    });
-
     add_to_startup().expect("Failed to add to startup");
-
-    _ = app.wait_for_message();
+    trayBuilder::build_tray();
+    handle.join().expect("Failed to join thread");
 }
 
 fn send_response(socket: &UdpSocket, response: &str, sender: &str) {
@@ -236,6 +225,7 @@ fn mouse_right_click(enigo: &mut Enigo, button: enigo::MouseButton) {
     enigo.mouse_click(button);
 }
 
+#[cfg(windows)]
 fn add_to_startup() -> io::Result<()> {
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
     let run_key = hkcu.open_subkey_with_flags(
@@ -246,5 +236,10 @@ fn add_to_startup() -> io::Result<()> {
     let exe_path = std::env::current_exe()?.to_string_lossy().to_string();
 
     run_key.set_value("RemoteShutdown", &exe_path)?;
+    Ok(())
+}
+
+#[cfg(not(windows))]
+fn add_to_startup() -> io::Result<()> {
     Ok(())
 }
