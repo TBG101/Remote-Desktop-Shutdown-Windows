@@ -717,3 +717,5 @@ mouse move all 1.709161931818187 -0.36363636363637397
 Mouse move: 1.7091619, -0.36363637
 mouse move all 0.400213068181813 0.0
 Mouse move: 0.40021306, 0
+*
+echo -n "hello123" | openssl passwd -6 -stdin > hash.text    

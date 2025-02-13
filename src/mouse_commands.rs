@@ -16,6 +16,9 @@ use uinput::event::relative::Relative::Position;
 use uinput::event::relative::Relative::Wheel as relativeWheel;
 use uinput::event::Event::{Controller, Relative};
 
+use crate::linux_mouse::{self, VirtualMouse};
+use evdev::Key;
+
 #[cfg(target_os = "windows")]
 pub fn mouse_right_down(enigo: &mut Enigo) {
     enigo.button(Button::Right, Direction::Press);
@@ -90,92 +93,70 @@ pub fn mouse_middle_click(enigo: &mut Enigo) {
 }
 
 // Linux only
+
+// Linux only
 #[cfg(not(target_os = "windows"))]
-pub fn create_umouse() -> uinput::Device {
-    let device = uinput::default().unwrap().name("uinput-mouse").unwrap();
-    device
-        .event(Relative(Position(X)))
-        .unwrap()
-        .event(Relative(Position(Y)))
-        .unwrap()
-        .event(Relative(relativeWheel(Wheel::Vertical)))
-        .unwrap()
-        .event(Controller(Umouse(Left)))
-        .unwrap()
-        .event(Controller(Umouse(Right)))
-        .unwrap()
-        .event(Controller(Umouse(Middle)))
-        .unwrap()
-        .create()
-        .unwrap()
+pub fn create_umouse() -> VirtualMouse {
+    VirtualMouse::new().unwrap()
 }
 
 #[cfg(not(target_os = "windows"))]
-pub fn mouse_right_up(device: &mut uinput::Device) {
-    device.send(Controller(Umouse(Right)), 0).unwrap();
+pub fn mouse_right_up(mouse: &mut VirtualMouse) {
+    mouse.button_up(Key::BTN_RIGHT).unwrap();
 }
 
 #[cfg(not(target_os = "windows"))]
-pub fn mouse_left_up(device: &mut uinput::Device) {
-    device.send(Controller(Umouse(Left)), 0).unwrap();
+pub fn mouse_left_up(mouse: &mut VirtualMouse) {
+    mouse.button_up(Key::BTN_LEFT).unwrap();
 }
 
 #[cfg(not(target_os = "windows"))]
-pub fn mouse_left_down(device: &mut uinput::Device) {
-    device.send(Controller(Umouse(Left)), 1).unwrap();
+pub fn mouse_left_down(mouse: &mut VirtualMouse) {
+    mouse.button_down(Key::BTN_LEFT).unwrap();
 }
 
 #[cfg(not(target_os = "windows"))]
-pub fn mouse_right_down(device: &mut uinput::Device) {
-    device.send(Controller(Umouse(Right)), 1).unwrap();
+pub fn mouse_right_down(mouse: &mut VirtualMouse) {
+    mouse.button_down(Key::BTN_RIGHT).unwrap();
 }
 
 #[cfg(not(target_os = "windows"))]
-pub fn mouse_scroll(device: &mut uinput::Device, message: &str) {
+pub fn mouse_scroll(mouse: &mut VirtualMouse, message: &str) {
+    println!("scrolling {}", message);
     if let Ok(dy) = message.replace("scroll", "").parse::<i32>() {
-        device.send(Wheel::Vertical, dy).unwrap();
+        mouse.scroll(dy).unwrap();
     }
 }
 
 #[cfg(not(target_os = "windows"))]
-pub fn mouse_left_click(device: &mut uinput::Device) {
-    device.send(Controller(Umouse(Left)), 1).unwrap();
-    device.synchronize().unwrap();
-    device.send(Controller(Umouse(Left)), 0).unwrap();
-    device.synchronize().unwrap();
+pub fn mouse_left_click(mouse: &mut VirtualMouse) {
+    mouse.button_click(Key::BTN_LEFT).unwrap();
 }
 
 #[cfg(not(target_os = "windows"))]
-pub fn mouse_right_click(device: &mut uinput::Device) {
-    use uinput::event::Press;
-
-    device.send(Controller(Umouse(Right)), 1).unwrap();
-    device.synchronize().unwrap();
-    device.send(Controller(Umouse(Right)), 0).unwrap();
+pub fn mouse_right_click(mouse: &mut VirtualMouse) {
+    mouse.button_click(Key::BTN_RIGHT).unwrap();
 }
 
 #[cfg(not(target_os = "windows"))]
-pub fn mouse_middle_click(device: &mut uinput::Device) {
-    device.send(Controller(Umouse(Middle)), 1).unwrap();
-    device.synchronize().unwrap();
-    device.send(Controller(Umouse(Middle)), 0).unwrap();
+pub fn mouse_middle_click(mouse: &mut VirtualMouse) {
+    mouse.button_click(Key::BTN_MIDDLE).unwrap();
 }
 
 #[cfg(not(target_os = "windows"))]
-pub fn mouse_move(device: &mut uinput::Device, dx: f32, dy: f32) -> bool {
+pub fn mouse_move(mouse: &mut VirtualMouse, dx: f32, dy: f32) -> bool {
     let dx = (dx * 5.0) as i32;
     let dy = (dy * 5.0) as i32;
     if (dx == 0) && (dy == 0) {
         return false;
     }
 
-    device.send(X, dx).unwrap();
-    device.send(Y, dy).unwrap();
-    return true;
+    mouse.move_mouse(dx, dy).unwrap();
+    true
 }
 
 #[cfg(not(target_os = "windows"))]
-pub fn handle_mouse_move(message: &str, host: &str, device: &mut uinput::Device) -> bool {
+pub fn handle_mouse_move(message: &str, host: &str, mouse: &mut VirtualMouse) -> bool {
     let offset_str = message
         .replace(&format!("mouse move {} ", host), "")
         .replace("mouse move all ", "");
@@ -184,7 +165,7 @@ pub fn handle_mouse_move(message: &str, host: &str, device: &mut uinput::Device)
     match (offsets.get(0), offsets.get(1)) {
         (Some(dx_str), Some(dy_str)) => {
             if let (Ok(dx), Ok(dy)) = (dx_str.parse::<f32>(), dy_str.parse::<f32>()) {
-                return mouse_move(device, dx, dy);
+                return mouse_move(mouse, dx, dy);
             } else {
                 eprintln!("Error: Invalid offset values");
             }
@@ -193,5 +174,5 @@ pub fn handle_mouse_move(message: &str, host: &str, device: &mut uinput::Device)
             eprintln!("Error: Invalid offset format");
         }
     }
-    return true;
+    true
 }

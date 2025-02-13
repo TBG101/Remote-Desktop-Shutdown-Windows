@@ -1,12 +1,13 @@
+mod linux_mouse;
 mod mouse_commands;
 mod tray_builder;
-mod linux_mouse;
 mod utils;
 use mouse_commands::*;
 use std::io::Result;
 use std::net::UdpSocket;
 use std::thread;
 use utils::execute_cmd;
+use linux_mouse::VirtualMouse;
 
 #[cfg(target_os = "windows")]
 use winreg::enums::*;
@@ -104,7 +105,7 @@ fn packet_loop() -> Result<()> {
                 )?;
             }
             msg if msg.starts_with("mouse move all") || msg.starts_with(&mouse_move_host) => {
-                if !handle_mouse_move(&message, &hostname, &mut device){
+                if !handle_mouse_move(&message, &hostname, &mut device) {
                     continue;
                 }
             }
@@ -115,8 +116,6 @@ fn packet_loop() -> Result<()> {
             }
             _ => println!("Unknown command: {}", message),
         }
-        #[cfg(not(target_os = "windows"))]
-        device.synchronize().unwrap();
     }
 }
 
@@ -141,7 +140,8 @@ fn handle_mouse_command(msg: &str, hostname: &str, enigo: &mut Enigo) {
 }
 
 #[cfg(not(target_os = "windows"))]
-fn handle_mouse_command(msg: &str, hostname: &str, device: &mut uinput::device::Device) {
+fn handle_mouse_command(msg: &str, hostname: &str, device: &mut VirtualMouse) {
+
     let msg = msg
         .replace(&format!("mouse {}", hostname), "")
         .replace("mouse all", "")
