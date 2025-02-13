@@ -1,4 +1,5 @@
 use evdev::uinput::VirtualDeviceBuilder;
+use evdev::Synchronization;
 use evdev::{uinput::VirtualDevice, AttributeSet, EventType, InputEvent, Key, RelativeAxisType};
 use std::thread;
 use std::time::Duration;
@@ -37,6 +38,10 @@ impl VirtualMouse {
         })
     }
 
+    fn flush() -> InputEvent {
+        InputEvent::new(EventType::SYNCHRONIZATION, Synchronization::SYN_REPORT.0, 0)
+    }
+
     /// Move the mouse cursor by a relative amount (x, y)
     pub fn move_mouse(&mut self, x: i32, y: i32) -> Result<(), Box<dyn std::error::Error>> {
         if x.abs() < 2 && y.abs() < 2 {
@@ -53,7 +58,7 @@ impl VirtualMouse {
             let move_y = InputEvent::new(
                 EventType::RELATIVE,
                 RelativeAxisType::REL_Y.0,
-                self.acummulated_position.1+ y,
+                self.acummulated_position.1 + y,
             );
             self.device.emit(&[move_x, move_y])?;
             self.acummulated_position = (0, 0);
@@ -70,14 +75,17 @@ impl VirtualMouse {
     /// Press a mouse button (e.g., Key::BTN_LEFT, Key::BTN_RIGHT, Key::BTN_MIDDLE)
     pub fn button_down(&mut self, button: Key) -> Result<(), Box<dyn std::error::Error>> {
         let event = InputEvent::new(EventType::KEY, button.0, 1);
-        self.device.emit(&[event])?;
+        let flush: InputEvent = Self::flush();
+        self.device.emit(&[event, flush])?;
         Ok(())
     }
 
     /// Release a mouse button
     pub fn button_up(&mut self, button: Key) -> Result<(), Box<dyn std::error::Error>> {
         let event = InputEvent::new(EventType::KEY, button.0, 0);
-        self.device.emit(&[event])?;
+        let flush: InputEvent = Self::flush();
+
+        self.device.emit(&[event, flush])?;
         Ok(())
     }
 
@@ -94,10 +102,12 @@ impl VirtualMouse {
         print!("mouse scroll: {}", amount);
         let event = InputEvent::new(
             EventType::RELATIVE,
-            RelativeAxisType::REL_WHEEL.0,
+            RelativeAxisType::REL_WHEEL_HI_RES.0,
             amount * 2,
         );
-        self.device.emit(&[event])?;
+
+        let flush: InputEvent = Self::flush();
+        self.device.emit(&[event, flush])?;
         Ok(())
     }
 }

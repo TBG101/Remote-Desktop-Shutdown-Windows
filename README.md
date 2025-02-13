@@ -65,6 +65,13 @@ This project is licensed under the MIT License.
 ## Links
 * [Android App Repository](https://github.com/TBG101/Remote-Desktop-Shutdown)
   
+## Goals
+* **Cross-Platform Support:** Extend the application to support Linux and macOS.
+* **Enhanced Security:** Implement secure communication between the Android app and the Windows application.
+* **Remote File Management:** Add the ability to manage files on the PC from the Android app.
+* **Remote Desktop:** Enable remote desktop access from the Android app.
+* **Less Mouse Stutering on Linux:** Fix the mouse stuttering issue on Linux.
+
 ## Contact
 For any questions or feedback, reach out at **ziedhrz@gmail.com**
 
